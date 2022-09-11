@@ -1,39 +1,7 @@
 import Web3 from "web3"
 import type { AbiItem } from "web3-utils"
-import type { BlockHeader, BlockTransactionString } from "web3-eth"
-import type { Transaction, TransactionReceipt, Log } from "web3-core"
 import { loadLogsForContract } from "./loadLogs"
-import type { AtomicDatabase, DatabaseTransaction } from "./storage"
-
-export type EventParam<K, V> = {
-	name: K
-	value: V
-}
-export type NamedArgs<T extends EventParam<string, unknown>[]> = {
-	[K in T[number]["name"]]: Extract<T[number], { name: K }>["value"]
-}
-export type PositionalArgs<T extends EventParam<string, unknown>[]> = {
-	[K in keyof T]: T[K]["value"]
-}
-
-export type Event<T extends EventParam<string, unknown>[]> = {
-	address: string
-	logIndex: number
-	args: NamedArgs<T>
-	// transactionLogIndex: BigInt
-	// logType: string | null
-	block: BlockTransactionString
-	transaction: Transaction
-	parameters: PositionalArgs<T>
-	receipt?: TransactionReceipt
-}
-
-type EventHandler<T extends EventParam<string, unknown>[], StorageMap extends Record<string, unknown>> =
-	(e: Event<T>, storage: DatabaseTransaction<StorageMap>) => Promise<void>
-
-export type Handlers<Events extends Record<string, EventParam<string, unknown>[]>, StorageMap extends Record<string, unknown>> = {
-	[K in keyof Events]: EventHandler<Events[K], StorageMap>
-}
+import type { AtomicDatabase, Event, EventParam, Handlers, NamedArgs } from "./storage"
 
 export type Config<Events extends Record<string, EventParam<string, unknown>[]>, StorageMap extends Record<string, unknown>> = {
 	rpc: string
@@ -86,7 +54,7 @@ const partitionFK = <T extends {}, K extends keyof T>(obj: T, f: (k: keyof T) =>
 export async function startLoop<
 	Events extends Record<string, EventParam<string, unknown>[]>,
 	Db extends Record<string, unknown>
->(storage: AtomicDatabase<Db>, config: Config<Events, Db>)
+>(storage: AtomicDatabase<Db, Events>, config: Config<Events, Db>)
 {
 	let web3 = new Web3(config.rpc)
 	let addresses = Object.keys(config.contracts)
@@ -110,20 +78,34 @@ export async function startLoop<
 			let contract = config.contracts[log.address]
 			let topic = log.topics[0]
 			// console.log(log)
-			let event = web3.eth.abi.decodeLog(events[log.address][topic].inputs || [], log.data, log.topics.slice(1))
+			let abi = events[log.address][topic]
+			let eventArgs = web3.eth.abi.decodeLog(abi.inputs || [], log.data, log.topics.slice(1))
+
+			let event: Event<Events[string]> = {
+				address: log.address,
+
+				name: abi.name || "",
+				fullName: (web3.utils as any)._jsonInterfaceMethodToString(abi),
+				topic,
+
+				blockNumber,
+				blockHash: block.hash,
+				txHash: log.transactionHash,
+				logIndex: log.logIndex,
+				args: eventArgs as any,
+				parameters: eventArgs as any,
+			}
+			await dbTx.eventCollection(topic, log.address).add(event)
+
 			// console.log(event)
 
 			let handler = contract.handlers[topic]
 			if (handler)
 			{
-				await handler({
-					address: log.address,
+				await handler(event, dbTx, {
 					block: block,
-					logIndex: log.logIndex,
-					transaction: tx,
-					args: event as any,
-					parameters: event as any,
-				}, dbTx)
+					tx: tx,
+				})
 			}
 		}
 		await dbTx.commit()
