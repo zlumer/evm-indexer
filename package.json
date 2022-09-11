@@ -6,7 +6,7 @@
 	"author": "zlumer",
 	"license": "MIT",
 	"scripts": {
-		"dolt-server": "dolt sql-server --user=root --password=password"
+		"start": "ts-node src"
 	},
 	"dependencies": {
 		"@prisma/client": "4.3.1",
