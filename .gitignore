@@ -1,0 +1,4 @@
+/.dolt
+/node_modules
+.env
+.sqlhistory
