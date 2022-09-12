@@ -115,17 +115,17 @@ export async function startLoop<
 		await storage.vacuum()
 
 		let blockHeight = await web3.eth.getBlockNumber()
-		let lastProcessedBlock = await getLastProcessedBlock(storage) + 1
+		let nextBlockToProcess = await getLastProcessedBlock(storage) + 1
 		// console.log(`startingBlock: ${startingBlock}, lastProcessedBlock: ${lastProcessedBlock}`)
-		if (lastProcessedBlock < startingBlock)
-			lastProcessedBlock = startingBlock
-		if (lastProcessedBlock >= blockHeight)
+		if (nextBlockToProcess < startingBlock)
+			nextBlockToProcess = startingBlock
+		if (nextBlockToProcess > blockHeight)
 		{
-			console.log(`[${lastProcessedBlock}] No new blocks to process, waiting...`)
+			console.log(`[${nextBlockToProcess}] No new blocks to process, waiting...`)
 			await new Promise(resolve => setTimeout(resolve, 3000))
 			continue
 		}
-		let nextChunk = await loadNextChunkLogsForContract(web3, addresses, topics, blockHeight, lastProcessedBlock, 1999)
+		let nextChunk = await loadNextChunkLogsForContract(web3, addresses, topics, blockHeight, nextBlockToProcess, 1999)
 		if (!nextChunk)
 		{
 			// we're in the middle of reorg, just skip everything
