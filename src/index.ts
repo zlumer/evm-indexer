@@ -126,6 +126,11 @@ export async function startLoop<
 			continue
 		}
 		let nextChunk = await loadNextChunkLogsForContract(web3, addresses, topics, blockHeight, lastProcessedBlock, 1999)
+		if (!nextChunk)
+		{
+			// we're in the middle of reorg, just skip everything
+			continue
+		}
 		if (!nextChunk.logsCount)
 		{
 			await skipBlock(storage, nextChunk.lastBlock.number, nextChunk.lastBlock.hash)

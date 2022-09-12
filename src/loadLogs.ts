@@ -60,7 +60,7 @@ export async function loadNextChunkLogsForContract(
 	// let blockHeight = await web3.eth.getBlockNumber()
 
 	// console.log(`block height: ${blockHeight}`)
-	let blockCount = blockHeight - startingBlock
+	// let blockCount = blockHeight - startingBlock
 	// console.log(`block count: ${blockCount}`)
 
 	let chunk = getNextChunk(blockHeight, startingBlock, startingBatchSize)
@@ -69,6 +69,10 @@ export async function loadNextChunkLogsForContract(
 
 	// console.log(`checking ${b.from}->${b.to} / ${blockHeight}`)
 	let lastBlock = await web3.eth.getBlock(chunk.to)
+
+	if (!lastBlock) // this means the chain is in the middle of a reorg
+		return undefined
+
 	let p = await web3.eth.getPastLogs({
 		address: address,
 		fromBlock: chunk.from,
