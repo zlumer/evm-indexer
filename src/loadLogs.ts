@@ -37,47 +37,50 @@ function groupBy<T>(arr: T[], by: (x: T) => string | number): T[][]
 	return result
 }
 
-export async function loadLogsForContract(
+export function getNextChunk(
+	blockHeight: number,
+	startingBlock: number,
+	batchSize: number
+)
+{
+	let from = startingBlock
+	let to = Math.min(from + batchSize, blockHeight)
+	return { from, to }
+}
+
+export async function loadNextChunkLogsForContract(
 	web3: Web3,
 	address: string | string[],
 	topics: string[],
+	blockHeight: number,
 	startingBlock: number,
 	startingBatchSize: number,
-	onLogFound: (blockNumber: number, logs: Log[]) => Promise<void>
 )
 {
-	let blockHeight = await web3.eth.getBlockNumber()
+	// let blockHeight = await web3.eth.getBlockNumber()
 
-	console.log(`block height: ${blockHeight}`)
-	console.log(`block count: ${blockHeight - startingBlock}`)
+	// console.log(`block height: ${blockHeight}`)
+	let blockCount = blockHeight - startingBlock
+	// console.log(`block count: ${blockCount}`)
 
-	let blocks = splitBlocksToChunks({ from: startingBlock, to: blockHeight }, startingBatchSize)
-	let startTime = Date.now()
-	let total = {
-		blocksScanned: blockHeight - startingBlock,
-		logsFound: 0,
-		blocksWithLogs: 0,
-	}
-	for (let b of blocks)
-	{
-		// console.log(`checking ${b.from}->${b.to} / ${blockHeight}`)
-		let p = await web3.eth.getPastLogs({
-			address: address,
-			fromBlock: b.from,
-			toBlock: b.to,
-			topics: [topics]
-		})
-		// console.log(p)
-		let groupedLogs = groupBy(p, x => x.blockHash)
-		for (let group of groupedLogs)
-		{
-			await onLogFound(group[0].blockNumber, group)
-		}
-		total.logsFound += p.length
-		total.blocksWithLogs += groupedLogs.length
-	}
+	let chunk = getNextChunk(blockHeight, startingBlock, startingBatchSize)
+
+	console.log(`chunk: `, chunk)
+
+	// console.log(`checking ${b.from}->${b.to} / ${blockHeight}`)
+	let lastBlock = await web3.eth.getBlock(chunk.to)
+	let p = await web3.eth.getPastLogs({
+		address: address,
+		fromBlock: chunk.from,
+		toBlock: chunk.to,
+		topics: [topics]
+	})
+	// console.log(p)
+	let groupedLogs = groupBy(p, x => x.blockHash)
 	return {
-		...total,
-		duration: (Date.now() - startTime) / 1000
+		logsCount: p.length,
+		groupedLogs,
+		chunk,
+		lastBlock,
 	}
 }

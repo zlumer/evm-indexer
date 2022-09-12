@@ -1,6 +1,7 @@
 import Web3 from "web3"
 import type { AbiItem } from "web3-utils"
-import { loadLogsForContract } from "./loadLogs"
+import { loadNextChunkLogsForContract } from "./loadLogs"
+import { splitWeb3Result } from "./parser"
 import type { AtomicDatabase, Event, EventParam, Handlers, NamedArgs } from "./storage"
 
 export type Config<Events extends Record<string, EventParam<string, unknown>[]>, StorageMap extends Record<string, unknown>> = {
@@ -51,6 +52,51 @@ const partitionFK = <T extends {}, K extends keyof T>(obj: T, f: (k: keyof T) =>
 	}
 }
 
+async function checkForLastValidBlock(web3: Web3, blocks: { blockHash: string, blockNumber: number }[])
+{
+	blocks = blocks.slice()
+	let last = blocks.pop()
+	while (last)
+	{
+		let block = await web3.eth.getBlock(last.blockNumber)
+		if (block.hash == last.blockHash)
+			return last.blockNumber
+
+		last = blocks.pop()
+	}
+	return 0
+}
+async function validateStorage(web3: Web3, storage: AtomicDatabase<{}, {}>)
+{
+	let metaTx = await storage.startMetaTransaction()
+	let blocks = await metaTx.getAvailableParsedBlocks()
+	if (!blocks.length)
+		return console.log(`validateStorage: no blocks, rolling back`), metaTx.rollback()
+
+	let lastValidBlock = await checkForLastValidBlock(web3, blocks)
+	if (lastValidBlock != blocks[blocks.length - 1].blockNumber)
+		console.log(`validateStorage: reverting from ${blocks[blocks.length - 1].blockNumber} to ${lastValidBlock}`), await metaTx.revertToBlock(lastValidBlock)
+
+	await metaTx.commit()
+}
+async function getLastProcessedBlock(storage: AtomicDatabase<{}, {}>)
+{
+	let metaTx = await storage.startMetaTransaction()
+	let blocks = await metaTx.getAvailableParsedBlocks()
+	await metaTx.rollback()
+
+	if (!blocks.length)
+		return 0
+
+	return blocks[blocks.length - 1].blockNumber
+}
+
+async function skipBlock(storage: AtomicDatabase<{}, {}>, blockNumber: number, blockHash: string)
+{
+	let tx = await storage.startTransaction(blockNumber, blockHash)
+	await tx.commit()
+}
+
 export async function startLoop<
 	Events extends Record<string, EventParam<string, unknown>[]>,
 	Db extends Record<string, unknown>
@@ -62,53 +108,87 @@ export async function startLoop<
 	let topics = removeDuplicates(filterEvents(abis).map(web3.eth.abi.encodeEventSignature))
 	let startingBlock = Math.min(...Object.values(config.contracts).map(x => x.createdBlockNumber))
 	let events = mapObj(config.contracts, (k, v) => eventsByTopic(v.abi, web3.eth.abi.encodeEventSignature))
-	await loadLogsForContract(web3, addresses, topics, startingBlock, 1999, async (blockNumber, logs) =>
+
+	while (true)
 	{
-		if (!logs.length)
-			return
+		await validateStorage(web3, storage)
+		await storage.vacuum()
 
-		let block = await web3.eth.getBlock(blockNumber)
-		let dbTx = await storage.startTransaction(blockNumber)
-		let tx = await web3.eth.getTransaction(logs[0].transactionHash)
-		for (let log of logs)
+		let blockHeight = await web3.eth.getBlockNumber()
+		let lastProcessedBlock = await getLastProcessedBlock(storage) + 1
+		// console.log(`startingBlock: ${startingBlock}, lastProcessedBlock: ${lastProcessedBlock}`)
+		if (lastProcessedBlock < startingBlock)
+			lastProcessedBlock = startingBlock
+		if (lastProcessedBlock >= blockHeight)
 		{
-			if (tx.hash != log.transactionHash)
-				tx = await web3.eth.getTransaction(log.transactionHash)
-
-			let contract = config.contracts[log.address]
-			let topic = log.topics[0]
-			// console.log(log)
-			let abi = events[log.address][topic]
-			let eventArgs = web3.eth.abi.decodeLog(abi.inputs || [], log.data, log.topics.slice(1))
-
-			let event: Event<Events[string]> = {
-				address: log.address,
-
-				name: abi.name || "",
-				fullName: (web3.utils as any)._jsonInterfaceMethodToString(abi),
-				topic,
-
-				blockNumber,
-				blockHash: block.hash,
-				txHash: log.transactionHash,
-				logIndex: log.logIndex,
-				args: eventArgs as any,
-				parameters: eventArgs as any,
-			}
-			await dbTx.eventCollection(topic, log.address).add(event)
-
-			// console.log(event)
-
-			let handler = contract.handlers[topic]
-			if (handler)
-			{
-				await handler(event, dbTx, {
-					block: block,
-					tx: tx,
-				})
-			}
+			console.log(`[${lastProcessedBlock}] No new blocks to process, waiting...`)
+			await new Promise(resolve => setTimeout(resolve, 3000))
+			continue
 		}
-		await dbTx.commit()
-	})
-	await storage.closeConnection()
+		let nextChunk = await loadNextChunkLogsForContract(web3, addresses, topics, blockHeight, lastProcessedBlock, 1999)
+		if (!nextChunk.logsCount)
+		{
+			await skipBlock(storage, nextChunk.lastBlock.number, nextChunk.lastBlock.hash)
+			continue
+		}
+		for (let logs of nextChunk.groupedLogs)
+		{
+			let blockNumber = logs[0].blockNumber
+			let blockHash = logs[0].blockHash
+
+			console.log(`processing block ${blockNumber}`)
+
+			let dbTx = await storage.startTransaction(blockNumber, blockHash)
+
+			let block = await web3.eth.getBlock(blockNumber)
+			if (block.hash != blockHash)
+			{
+				console.log(`[${blockNumber}] block hash mismatch, reverting`)
+				break
+			}
+
+			let tx = await web3.eth.getTransaction(logs[0].transactionHash)
+			for (let log of logs)
+			{
+				if (tx.hash != log.transactionHash)
+					tx = await web3.eth.getTransaction(log.transactionHash)
+
+				let contract = config.contracts[log.address]
+				let topic = log.topics[0]
+				// console.log(log)
+				let abi = events[log.address][topic]
+				let eventArgs = web3.eth.abi.decodeLog(abi.inputs || [], log.data, log.topics.slice(1))
+				let { obj: args, arr: parameters } = splitWeb3Result<Event<Events[string]>["args"]>(eventArgs, abi.inputs || [])
+
+				let event: Event<Events[string]> = {
+					address: log.address,
+
+					name: abi.name || "",
+					fullName: (web3.utils as any)._jsonInterfaceMethodToString(abi),
+					topic,
+
+					blockNumber,
+					blockHash: block.hash,
+					txHash: log.transactionHash,
+					logIndex: log.logIndex,
+					args,
+					parameters,
+				}
+				await dbTx.eventCollection(topic, log.address).add(event)
+
+				// console.log(event)
+
+				let handler = contract.handlers[topic]
+				if (handler)
+				{
+					await handler(event, dbTx, {
+						block: block,
+						tx: tx,
+					})
+				}
+			}
+			await dbTx.commit()
+		}
+		await skipBlock(storage, nextChunk.lastBlock.number, nextChunk.lastBlock.hash)
+	}
 }
