@@ -271,7 +271,7 @@ export const inMemoryStorage = <
 								continue
 
 							if (matchObject(l.value, query))
-								return l.value
+								return clone(l.value)
 						}
 						return undefined
 					}
@@ -288,7 +288,7 @@ export const inMemoryStorage = <
 								continue
 
 							if (matchObject(l.value, query))
-								arr.push(l.value)
+								arr.push(clone(l.value))
 						}
 						return arr
 					}
