@@ -362,7 +362,7 @@ export const inMemoryStorage = <
 						blockNumber,
 						blockHash,
 					})
-					console.log(`!!! processed block ${blockNumber}!`)
+					console.log(`block ${blockNumber} processed`)
 
 					if (onCommit)
 						await onCommit(db)
