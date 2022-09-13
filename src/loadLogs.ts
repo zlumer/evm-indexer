@@ -65,7 +65,7 @@ export async function loadNextChunkLogsForContract(
 
 	let chunk = getNextChunk(blockHeight, startingBlock, startingBatchSize)
 
-	console.log(`chunk: `, chunk)
+	// console.log(`chunk: `, chunk)
 
 	// console.log(`checking ${b.from}->${b.to} / ${blockHeight}`)
 	let lastBlock = await web3.eth.getBlock(chunk.to)

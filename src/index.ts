@@ -126,7 +126,7 @@ export async function startLoop<
 			nextBlockToProcess = startingBlock
 		if (nextBlockToProcess > blockHeight)
 		{
-			console.log(`[${nextBlockToProcess}] No new blocks to process, waiting...`)
+			// console.log(`[${nextBlockToProcess}] No new blocks to process, waiting...`)
 			await sleep(3000)
 			continue
 		}
