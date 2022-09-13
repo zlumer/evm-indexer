@@ -212,7 +212,7 @@ export async function startLoop<
 					txHash: log.transactionHash,
 					logIndex: log.logIndex,
 					args,
-					parameters,
+					data: log.data,
 				}
 				await dbTx.eventCollection(topic, log.address).add(event)
 

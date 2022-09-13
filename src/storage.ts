@@ -1,7 +1,7 @@
 import { clone } from "froebel"
 
-import type { BlockHeader, BlockTransactionString } from "web3-eth"
-import type { Transaction, TransactionReceipt, Log } from "web3-core"
+import type { BlockTransactionString } from "web3-eth"
+import type { Transaction } from "web3-core"
 
 export type EventParam<K, V> = {
 	name: K
@@ -28,7 +28,7 @@ export type Event<T extends EventParam<string, unknown>[]> = {
 
 	args: NamedArgs<T>
 
-	parameters: unknown[]
+	data: string
 
 	// transactionLogIndex: BigInt
 	// logType: string | null
