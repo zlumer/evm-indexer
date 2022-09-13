@@ -99,10 +99,24 @@ async function skipBlock(storage: AtomicDatabase<{}, {}>, blockNumber: number, b
 	await tx.commit()
 }
 
+type ProgressHandler = (
+	startBlockNumber: number,
+	lastProcessedBlockNumber: number,
+	blockHeight: number
+) => void
+
+export const logProgress: ProgressHandler = (startBlockNumber, lastProcessedBlockNumber, blockHeight) =>
+{
+	let totalBlocks = blockHeight - startBlockNumber
+	let processedBlocks = lastProcessedBlockNumber - startBlockNumber
+	let percent = processedBlocks / totalBlocks * 100
+	console.log(`index progress: ${percent.toFixed(2)}% (${processedBlocks}/${totalBlocks})`)
+}
+
 export async function startLoop<
 	Events extends Record<string, EventParam<string, unknown>[]>,
 	Db extends Record<string, unknown>
->(storage: AtomicDatabase<Db, Events>, config: Config<Events, Db>)
+>(storage: AtomicDatabase<Db, Events>, config: Config<Events, Db>, onProgress?: ProgressHandler)
 {
 	let web3 = new Web3(config.rpc)
 	let addresses = Object.keys(config.contracts)
@@ -124,6 +138,10 @@ export async function startLoop<
 		// console.log(`startingBlock: ${startingBlock}, lastProcessedBlock: ${lastProcessedBlock}`)
 		if (nextBlockToProcess < startingBlock)
 			nextBlockToProcess = startingBlock
+
+		if (onProgress)
+			onProgress(startingBlock, nextBlockToProcess - 1, blockHeight)
+		
 		if (nextBlockToProcess > blockHeight)
 		{
 			// console.log(`[${nextBlockToProcess}] No new blocks to process, waiting...`)
