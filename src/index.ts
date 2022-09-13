@@ -1,7 +1,9 @@
 import Web3 from "web3"
 import type { AbiItem } from "web3-utils"
+import type { BlockTransactionString } from "web3-eth"
 import { loadNextChunkLogsForContract } from "./loadLogs"
 import { splitWeb3Result } from "./parser"
+import { sleep } from "./sleep"
 import type { AtomicDatabase, Event, EventParam, Handlers, NamedArgs } from "./storage"
 
 export type Config<Events extends Record<string, EventParam<string, unknown>[]>, StorageMap extends Record<string, unknown>> = {
@@ -58,8 +60,8 @@ async function checkForLastValidBlock(web3: Web3, blocks: { blockHash: string, b
 	let last = blocks.pop()
 	while (last)
 	{
-		let block = await web3.eth.getBlock(last.blockNumber)
-		if (block.hash == last.blockHash)
+		let block: BlockTransactionString | undefined = await web3.eth.getBlock(last.blockNumber)
+		if (block?.hash == last.blockHash)
 			return last.blockNumber
 
 		last = blocks.pop()
@@ -122,13 +124,14 @@ export async function startLoop<
 		if (nextBlockToProcess > blockHeight)
 		{
 			console.log(`[${nextBlockToProcess}] No new blocks to process, waiting...`)
-			await new Promise(resolve => setTimeout(resolve, 3000))
+			await sleep(3000)
 			continue
 		}
 		let nextChunk = await loadNextChunkLogsForContract(web3, addresses, topics, blockHeight, nextBlockToProcess, 1999)
 		if (!nextChunk)
 		{
 			// we're in the middle of reorg, just skip everything
+			await sleep(1000)
 			continue
 		}
 		if (!nextChunk.logsCount)
