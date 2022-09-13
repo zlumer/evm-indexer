@@ -97,11 +97,11 @@ function filterAllExceptLast<T>(arr: T[], predicate: (x: T) => boolean): T[]
 {
 	if (arr.length < 2)
 		return arr
-	
+
 	const firstValidIndex = arr.findIndex(predicate)
 	if ((firstValidIndex === -1) || (firstValidIndex === arr.length - 1))
 		return [last(arr)!]
-	
+
 	return arr.slice(firstValidIndex)
 }
 
@@ -140,36 +140,28 @@ export const inMemoryStorage = <
 		events: {} as LocalDb<Records, Events>["events"],
 		meta: [],
 	}
-	// let somethingInProgress: Promise<void> | undefined
 	return {
 		async vacuum()
 		{
 			if (db.meta.length < 2)
 				return
 
-			// return /* somethingInProgress =  */new Promise((res) =>
-			// {
-				let lastBlockNumber = db.meta[db.meta.length - 1].blockNumber
-				let removeBefore = lastBlockNumber - timeTravelDepth
-				let oldBlocks = db.meta.filter(x => x.blockNumber <= removeBefore)
-				let lastValidBlock = last(oldBlocks)
-				if (!lastValidBlock)
+			let lastBlockNumber = db.meta[db.meta.length - 1].blockNumber
+			let removeBefore = lastBlockNumber - timeTravelDepth
+			let oldBlocks = db.meta.filter(x => x.blockNumber <= removeBefore)
+			let lastValidBlock = last(oldBlocks)
+			if (!lastValidBlock)
+				return
+
+			let lastValidBlockNumber = lastValidBlock.blockNumber
+			db.meta = db.meta.filter(x => x.blockNumber >= lastValidBlockNumber)
+			for (let modelName in db.saved)
+			{
+				for (let id in db.saved[modelName])
 				{
-					// somethingInProgress = undefined
-					return /* res() */
+					db.saved[String(modelName)][id] = filterAllExceptLast(db.saved[modelName][id], x => x.blockNumber >= lastValidBlockNumber)
 				}
-				let lastValidBlockNumber = lastValidBlock.blockNumber
-				db.meta = db.meta.filter(x => x.blockNumber >= lastValidBlockNumber)
-				for (let modelName in db.saved)
-				{
-					for (let id in db.saved[modelName])
-					{
-						db.saved[String(modelName)][id] = filterAllExceptLast(db.saved[modelName][id], x => x.blockNumber >= lastValidBlockNumber)
-					}
-				}
-				// somethingInProgress = undefined
-				// return res()
-			// })
+			}
 		},
 		async closeConnection()
 		{
@@ -185,194 +177,210 @@ export const inMemoryStorage = <
 		},
 		async startMetaTransaction(): Promise<MetaTransaction>
 		{
-			// if (somethingInProgress)
-			// 	await somethingInProgress
+			let finished = false
 
-			let tx: MetaTransaction
-			// somethingInProgress = new Promise((resolve) =>
-			// {
-				tx = {
-					async commit()
-					{
-						// console.log(`meta transaction commited`)
-						if (onCommit)
-							await onCommit(db)
+			return {
+				async commit()
+				{
+					if (finished)
+						throw new Error(`Meta transaction already finished`)
 
-						// somethingInProgress = undefined
-						// resolve()
+					finished = true
 
-						return true
-					},
-					async rollback()
-					{
-						// console.log(`meta transaction rolled back`)
+					// console.log(`meta transaction commited`)
+					if (onCommit)
+						await onCommit(db)
 
-						// somethingInProgress = undefined
-						// resolve()
+					return true
+				},
+				async rollback()
+				{
+					if (finished)
+						throw new Error(`Meta transaction already finished`)
 
-						return true
-					},
-					async getAvailableParsedBlocks()
-					{
-						return db.meta
-					},
-					async revertToBlock(blockNumber)
-					{
-						console.log(`Reverting to block ${blockNumber}`)
+					finished = true
 
-						for (let event in db.events)
-							db.events[event] = db.events[event].filter((e) => e.blockNumber <= blockNumber)
+					// console.log(`meta transaction rolled back`)
 
-						for (let model in db.saved)
-							for (let id in db.saved[model])
-								db.saved[String(model)][id] = db.saved[model][id].filter((e) => e.blockNumber <= blockNumber)
+					return true
+				},
+				async getAvailableParsedBlocks()
+				{
+					return db.meta
+				},
+				async revertToBlock(blockNumber)
+				{
+					console.log(`Reverting to block ${blockNumber}`)
 
-						db.meta = db.meta.filter((e) => e.blockNumber <= blockNumber)
-						return true
-					},
-				}
-			// })
-			return tx!
+					for (let event in db.events)
+						db.events[event] = db.events[event].filter((e) => e.blockNumber <= blockNumber)
+
+					for (let model in db.saved)
+						for (let id in db.saved[model])
+							db.saved[String(model)][id] = db.saved[model][id].filter((e) => e.blockNumber <= blockNumber)
+
+					db.meta = db.meta.filter((e) => e.blockNumber <= blockNumber)
+					return true
+				},
+			}
 		},
 		async startTransaction(blockNumber, blockHash)
 		{
-			// if (somethingInProgress)
-			// 	await somethingInProgress
-
 			console.log(`db transaction started at block ${blockNumber}`)
 			let savedDraft = clone(db.saved)
 			let eventDraft = clone(db.events)
 
-			let tx: DatabaseTransaction<Records, Events>
-			// somethingInProgress = new Promise((res, rej) =>
-			// {
-				tx = {
-					eventCollection(topic, contract)
-					{
-						return {
-							async add(data)
-							{
-								console.log(`adding event ${data.name}`)
-								eventDraft[topic] = eventDraft[topic] || []
-								eventDraft[topic].push(data)
-							},
-						}
-					},
-					collection(name)
-					{
-						savedDraft[name] ||= {}
-						async function load(id: string)
+			let finished = false
+
+			return {
+				eventCollection(topic, contract)
+				{
+					return {
+						async add(data)
 						{
-							console.log(`loading ${String(name)}.${id}`)
-
-							if (!savedDraft[name]?.[id]?.length)
-								return undefined
-
-							return clone(last<any>(savedDraft[name][id]).value)
-						}
-						async function findOne(query: Partial<{}>)
-						{
-							for (let id in savedDraft[name])
-							{
-								let l = last(savedDraft[name][id])
-								if (!l)
-									continue
-									
-								if (matchObject(l.value, query))
-									return l.value
-							}
-							return undefined
-						}
-						async function findMany(query: Partial<{}>)
-						{
-							let arr = []
-							for (let id in savedDraft[name])
-							{
-								let l = last(savedDraft[name][id])
-								if (!l)
-									continue
-									
-								if (matchObject(l.value, query))
-									arr.push(l.value)
-							}
-							return arr
-						}
-						return {
-							load,
-							findOne,
-							findMany,
-							async loadThrow(id)
-							{
-								let val = load(id)
-								if (!val)
-									throw new Error(`${String(name)} ${id} not found!`)
-
-								return val
-							},
-							async save(id, data)
-							{
-								console.log(`saving ${String(name)}.${id}`)
-
-								savedDraft[String(name)][id] ||= []
-
-								if (last(savedDraft[String(name)][id])?.blockNumber == blockNumber)
-									savedDraft[String(name)][id].pop()
-
-								savedDraft[name][id].push({
-									blockNumber,
-									value: data,
-								})
-							},
-							async findOneThrow(query)
-							{
-								let val = await findOne(query)
-								if (!val)
-									throw new Error(`${String(name)} not found! ${JSON.stringify(query)}`)
-
-								return val
-							},
-							async delete(id)
-							{
-								console.log(`deleting ${String(name)}.${id}`)
-								if (!savedDraft[name]?.[id]?.length)
-									return
-
-								last<any>(savedDraft[name][id]).value = undefined
-							},
-						}
-					},
-					async commit()
+							console.log(`adding event ${data.name}`)
+							eventDraft[topic] = eventDraft[topic] || []
+							eventDraft[topic].push(data)
+						},
+					}
+				},
+				collection(name)
+				{
+					savedDraft[name] ||= {}
+					async function load(id: string)
 					{
-						// console.log(`db transaction commited`)
-						db.saved = savedDraft
-						db.events = eventDraft
-						db.meta.push({
-							blockNumber,
-							blockHash,
-						})
-						console.log(`!!! processed block ${blockNumber}!`)
-
-						// somethingInProgress = undefined
-						if (onCommit)
-							await onCommit(db)
+						if (finished)
+							throw new Error(`Transaction for ${blockNumber} already finished!`)
 						
-						// res()
+						console.log(`loading ${String(name)}.${id}`)
 
-						return true
-					},
-					async rollback()
+						if (!savedDraft[name]?.[id]?.length)
+							return undefined
+
+						return clone(last<any>(savedDraft[name][id]).value)
+					}
+					async function findOne(query: Partial<{}>)
 					{
-						// console.log(`db transaction rolled back`)
+						if (finished)
+							throw new Error(`Transaction for ${blockNumber} already finished!`)
 
-						// somethingInProgress = undefined
+						for (let id in savedDraft[name])
+						{
+							let l = last(savedDraft[name][id])
+							if (!l)
+								continue
 
-						// res()
+							if (matchObject(l.value, query))
+								return l.value
+						}
+						return undefined
+					}
+					async function findMany(query: Partial<{}>)
+					{
+						if (finished)
+							throw new Error(`Transaction for ${blockNumber} already finished!`)
 
-						return true
-					},
-				}
-			// })
-			return tx!
+						let arr = []
+						for (let id in savedDraft[name])
+						{
+							let l = last(savedDraft[name][id])
+							if (!l)
+								continue
+
+							if (matchObject(l.value, query))
+								arr.push(l.value)
+						}
+						return arr
+					}
+					return {
+						load,
+						findOne,
+						findMany,
+						async loadThrow(id)
+						{
+							if (finished)
+								throw new Error(`Transaction for ${blockNumber} already finished!`)
+	
+							let val = load(id)
+							if (!val)
+								throw new Error(`${String(name)} ${id} not found!`)
+
+							return val
+						},
+						async save(id, data)
+						{
+							if (finished)
+								throw new Error(`Transaction for ${blockNumber} already finished!`)
+	
+							console.log(`saving ${String(name)}.${id}`)
+
+							savedDraft[String(name)][id] ||= []
+
+							if (last(savedDraft[String(name)][id])?.blockNumber == blockNumber)
+								savedDraft[String(name)][id].pop()
+
+							savedDraft[name][id].push({
+								blockNumber,
+								value: data,
+							})
+						},
+						async findOneThrow(query)
+						{
+							if (finished)
+								throw new Error(`Transaction for ${blockNumber} already finished!`)
+	
+							let val = await findOne(query)
+							if (!val)
+								throw new Error(`${String(name)} not found! ${JSON.stringify(query)}`)
+
+							return val
+						},
+						async delete(id)
+						{
+							if (finished)
+								throw new Error(`Transaction for ${blockNumber} already finished!`)
+	
+							console.log(`deleting ${String(name)}.${id}`)
+							if (!savedDraft[name]?.[id]?.length)
+								return
+
+							last<any>(savedDraft[name][id]).value = undefined
+						},
+					}
+				},
+				async commit()
+				{
+					if (finished)
+						throw new Error(`Transaction for ${blockNumber} already finished!`)
+
+					finished = true
+
+					// console.log(`db transaction commited`)
+					db.saved = savedDraft
+					db.events = eventDraft
+					db.meta.push({
+						blockNumber,
+						blockHash,
+					})
+					console.log(`!!! processed block ${blockNumber}!`)
+
+					if (onCommit)
+						await onCommit(db)
+
+					return true
+				},
+				async rollback()
+				{
+					if (finished)
+						throw new Error(`Transaction for ${blockNumber} already finished!`)
+
+					finished = true
+
+					console.log(`db transaction rolled back`)
+
+					return true
+				},
+			}
 		},
 	}
 }
