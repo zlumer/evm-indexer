@@ -111,6 +111,9 @@ export async function startLoop<
 	let startingBlock = Math.min(...Object.values(config.contracts).map(x => x.createdBlockNumber))
 	let events = mapObj(config.contracts, (k, v) => eventsByTopic(v.abi, web3.eth.abi.encodeEventSignature))
 
+	console.log(`starting indexing from block #${startingBlock}`)
+	console.log(`last processed block is ${await getLastProcessedBlock(storage)}`)
+	console.log(`current block height is ${await web3.eth.getBlockNumber()}`)
 	while (true)
 	{
 		await validateStorage(web3, storage)
