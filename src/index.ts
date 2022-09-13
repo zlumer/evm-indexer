@@ -102,15 +102,24 @@ async function skipBlock(storage: AtomicDatabase<{}, {}>, blockNumber: number, b
 type ProgressHandler = (
 	startBlockNumber: number,
 	lastProcessedBlockNumber: number,
-	blockHeight: number
+	blockHeight: number,
+	timeStarted: number,
 ) => void
 
-export const logProgress: ProgressHandler = (startBlockNumber, lastProcessedBlockNumber, blockHeight) =>
+export const logProgress: ProgressHandler = (startBlockNumber, lastProcessedBlockNumber, blockHeight, timeStarted) =>
 {
 	let totalBlocks = blockHeight - startBlockNumber
 	let processedBlocks = lastProcessedBlockNumber - startBlockNumber
+	let remainingBlocks = totalBlocks - processedBlocks
 	let percent = processedBlocks / totalBlocks * 100
-	console.log(`index progress: ${percent.toFixed(2)}% (${processedBlocks}/${totalBlocks})`)
+
+	let now = Date.now()
+	let timePassed = now - timeStarted
+	let speed = processedBlocks / timePassed * 1000
+	let timeRemaining = remainingBlocks / speed
+
+	let timeString = ` ~${timeRemaining.toFixed(0)} seconds remaining`
+	console.log(`index progress: ${percent.toFixed(2)}% (${processedBlocks}/${totalBlocks})${remainingBlocks > 1 ? timeString : ""}`)
 }
 
 export async function startLoop<
@@ -124,6 +133,8 @@ export async function startLoop<
 	let topics = removeDuplicates(filterEvents(abis).map(web3.eth.abi.encodeEventSignature))
 	let startingBlock = Math.min(...Object.values(config.contracts).map(x => x.createdBlockNumber))
 	let events = mapObj(config.contracts, (k, v) => eventsByTopic(v.abi, web3.eth.abi.encodeEventSignature))
+
+	let timeStarted = Date.now()
 
 	console.log(`starting indexing from block #${startingBlock}`)
 	console.log(`last processed block is ${await getLastProcessedBlock(storage)}`)
@@ -140,7 +151,7 @@ export async function startLoop<
 			nextBlockToProcess = startingBlock
 
 		if (onProgress)
-			onProgress(startingBlock, nextBlockToProcess - 1, blockHeight)
+			onProgress(startingBlock, nextBlockToProcess - 1, blockHeight, timeStarted)
 		
 		if (nextBlockToProcess > blockHeight)
 		{
