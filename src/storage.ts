@@ -301,7 +301,7 @@ export const inMemoryStorage = <
 							if (finished)
 								throw new Error(`Transaction for ${blockNumber} already finished!`)
 	
-							let val = load(id)
+							let val = await load(id)
 							if (!val)
 								throw new Error(`${String(name)} ${id} not found!`)
 
