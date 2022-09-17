@@ -6,13 +6,17 @@ import { splitWeb3Result } from "./parser"
 import { sleep } from "./sleep"
 import type { AtomicDatabase, Event, EventParam, Handlers, NamedArgs } from "./storage"
 
-export type Config<Events extends Record<string, EventParam<string, unknown>[]>, StorageMap extends Record<string, unknown>> = {
+export type Config<
+	Events extends Record<string, EventParam<string, unknown>[]>,
+	StorageMap extends Record<string, unknown>,
+	Queries extends Record<keyof StorageMap, {}>
+> = {
 	rpc: string
 	contracts: Record<string, {
 		address: string
 		createdBlockNumber: number
 		abi: AbiItem[]
-		handlers: Handlers<Events, StorageMap>
+		handlers: Handlers<Events, StorageMap, Queries>
 	}>
 }
 
@@ -68,7 +72,7 @@ async function checkForLastValidBlock(web3: Web3, blocks: { blockHash: string, b
 	}
 	return 0
 }
-async function validateStorage(web3: Web3, storage: AtomicDatabase<{}, {}>)
+async function validateStorage<T extends AtomicDatabase<{}, {}, {}>>(web3: Web3, storage: T)
 {
 	let metaTx = await storage.startMetaTransaction()
 	let blocks = await metaTx.getAvailableParsedBlocks()
@@ -81,7 +85,7 @@ async function validateStorage(web3: Web3, storage: AtomicDatabase<{}, {}>)
 
 	await metaTx.commit()
 }
-async function getLastProcessedBlock(storage: AtomicDatabase<{}, {}>)
+async function getLastProcessedBlock<T extends AtomicDatabase<{}, {}, {}>>(storage: T)
 {
 	let metaTx = await storage.startMetaTransaction()
 	let blocks = await metaTx.getAvailableParsedBlocks()
@@ -93,7 +97,7 @@ async function getLastProcessedBlock(storage: AtomicDatabase<{}, {}>)
 	return blocks[blocks.length - 1].blockNumber
 }
 
-async function skipBlock(storage: AtomicDatabase<{}, {}>, blockNumber: number, blockHash: string)
+async function skipBlock<T extends AtomicDatabase<{}, {}, {}>>(storage: T, blockNumber: number, blockHash: string)
 {
 	let tx = await storage.startTransaction(blockNumber, blockHash)
 	await tx.commit()
@@ -124,8 +128,9 @@ export const logProgress: ProgressHandler = (startBlockNumber, lastProcessedBloc
 
 export async function startLoop<
 	Events extends Record<string, EventParam<string, unknown>[]>,
-	Db extends Record<string, unknown>
->(storage: AtomicDatabase<Db, Events>, config: Config<Events, Db>, onProgress?: ProgressHandler)
+	Db extends Record<string, unknown>,
+	Queries extends Record<keyof Db, {}>
+>(storage: AtomicDatabase<Db, Events, Queries>, config: Config<Events, Db, Queries>, onProgress?: ProgressHandler)
 {
 	let web3 = new Web3(config.rpc)
 	let addresses = Object.keys(config.contracts)
@@ -152,7 +157,7 @@ export async function startLoop<
 
 		if (onProgress)
 			onProgress(startingBlock, nextBlockToProcess - 1, blockHeight, timeStarted)
-		
+
 		if (nextBlockToProcess > blockHeight)
 		{
 			// console.log(`[${nextBlockToProcess}] No new blocks to process, waiting...`)
