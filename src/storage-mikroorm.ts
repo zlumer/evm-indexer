@@ -1,5 +1,5 @@
 import { EntityManager, PostgreSqlDriver } from '@mikro-orm/postgresql'
-import { EntityClass, FilterQuery, MikroORM, EntityRepository, RequiredEntityData, QueryOrderNumeric } from "@mikro-orm/core"
+import { EntityClass, FilterQuery, MikroORM, EntityRepository, RequiredEntityData, QueryOrderNumeric, wrap } from "@mikro-orm/core"
 import { EventParam, AtomicDatabase, Collection, EventCollection, Event } from './storage'
 import { __evm_blocks } from './storage/mikro-orm/meta/__evm_blocks'
 import { Event as EventEntity } from './storage/mikro-orm/events/Event'
@@ -33,6 +33,16 @@ export async function validateSchema(orm: MikroORM<PostgreSqlDriver>)
 		console.error(`Erorr trying to update schema! Migrate manually`)
 		throw e
 	}
+}
+
+async function upsert<T extends {}>(rep: EntityRepository<T>, where: FilterQuery<T>, data: T)
+{
+	let found = await rep.findOne(where)
+	let e = found ? wrap(found).assign(data) : rep.create(data)
+	
+	rep.persist(e)
+
+	return e
 }
 
 const getCollection = <T extends { blockNumber: number }>(
@@ -155,10 +165,7 @@ export const mikroOrmStorage = <
 			return {
 				commit: async () =>
 				{
-					em.persist(em.create(__evm_blocks, {
-						blockNumber,
-						blockHash,
-					}))
+					await upsert<__evm_blocks>(em.getRepository(__evm_blocks), { blockNumber }, { blockNumber, blockHash })
 					return em.commit()
 				},
 				rollback: () => em.rollback(),
