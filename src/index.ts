@@ -184,7 +184,7 @@ export async function startLoop<
 			let blockNumber = logs[0].blockNumber
 			let blockHash = logs[0].blockHash
 
-			console.log(`processing block ${blockNumber}`)
+			// console.log(`processing block ${blockNumber}`)
 
 			let dbTx = await storage.startTransaction(blockNumber, blockHash)
 
