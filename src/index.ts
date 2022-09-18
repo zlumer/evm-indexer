@@ -9,14 +9,15 @@ import type { AtomicDatabase, Event, EventParam, Handlers, NamedArgs } from "./s
 export type Config<
 	Events extends Record<string, EventParam<string, unknown>[]>,
 	StorageMap extends Record<string, unknown>,
-	Queries extends Record<keyof StorageMap, {}>
+	Queries extends Record<keyof StorageMap, {}>,
+	StorageMapCreateData extends Record<keyof StorageMap, {}>,
 > = {
 	rpc: string
 	contracts: Record<string, {
 		address: string
 		createdBlockNumber: number
 		abi: AbiItem[]
-		handlers: Handlers<Events, StorageMap, Queries>
+		handlers: Handlers<Events, StorageMap, Queries, StorageMapCreateData>
 	}>
 }
 
@@ -72,32 +73,27 @@ async function checkForLastValidBlock(web3: Web3, blocks: { blockHash: string, b
 	}
 	return 0
 }
-async function validateStorage<T extends AtomicDatabase<{}, {}, {}>>(web3: Web3, storage: T)
+async function validateStorage<T extends AtomicDatabase<{}, {}, {}, {}>>(web3: Web3, storage: T)
 {
 	let metaTx = await storage.startMetaTransaction()
 	let blocks = await metaTx.getAvailableParsedBlocks()
 	if (!blocks.length)
-		return console.log(`validateStorage: no blocks, rolling back`), metaTx.rollback()
+	{
+		console.log(`validateStorage: no blocks, starting from scratch`)
+		return metaTx.rollback()
+	}
 
 	let lastValidBlock = await checkForLastValidBlock(web3, blocks)
 	if (lastValidBlock != blocks[blocks.length - 1].blockNumber)
-		console.log(`validateStorage: reverting from ${blocks[blocks.length - 1].blockNumber} to ${lastValidBlock}`), await metaTx.revertToBlock(lastValidBlock)
+	{
+		console.log(`validateStorage: reverting from ${blocks[blocks.length - 1].blockNumber} to ${lastValidBlock}`)
+		await metaTx.revertToBlock(lastValidBlock)
+	}
 
 	await metaTx.commit()
 }
-async function getLastProcessedBlock<T extends AtomicDatabase<{}, {}, {}>>(storage: T)
-{
-	let metaTx = await storage.startMetaTransaction()
-	let blocks = await metaTx.getAvailableParsedBlocks()
-	await metaTx.rollback()
 
-	if (!blocks.length)
-		return 0
-
-	return blocks[blocks.length - 1].blockNumber
-}
-
-async function skipBlock<T extends AtomicDatabase<{}, {}, {}>>(storage: T, blockNumber: number, blockHash: string)
+async function skipBlock<T extends AtomicDatabase<{}, {}, {}, {}>>(storage: T, blockNumber: number, blockHash: string)
 {
 	let tx = await storage.startTransaction(blockNumber, blockHash)
 	await tx.commit()
@@ -129,8 +125,9 @@ export const logProgress: ProgressHandler = (startBlockNumber, lastProcessedBloc
 export async function startLoop<
 	Events extends Record<string, EventParam<string, unknown>[]>,
 	Db extends Record<string, unknown>,
-	Queries extends Record<keyof Db, {}>
->(storage: AtomicDatabase<Db, Events, Queries>, config: Config<Events, Db, Queries>, onProgress?: ProgressHandler)
+	Queries extends Record<keyof Db, {}>,
+	DbRawCreateData extends Record<keyof Db, {}>
+>(storage: AtomicDatabase<Db, Events, Queries, DbRawCreateData>, config: Config<Events, Db, Queries, DbRawCreateData>, onProgress?: ProgressHandler)
 {
 	let web3 = new Web3(config.rpc)
 	let addresses = Object.keys(config.contracts)
@@ -142,7 +139,13 @@ export async function startLoop<
 	let timeStarted = Date.now()
 
 	console.log(`starting indexing from block #${startingBlock}`)
-	console.log(`last processed block is ${await getLastProcessedBlock(storage)}`)
+
+	console.log(`preparing db...`)
+	await storage.prepare()
+	console.log(`db ready`)
+
+	let lastProcessedBlock = await storage.getLastProcessedBlockNumber()
+	console.log(`last processed block is ${lastProcessedBlock}`)
 	console.log(`current block height is ${await web3.eth.getBlockNumber()}`)
 	while (true)
 	{
@@ -150,8 +153,8 @@ export async function startLoop<
 		await storage.vacuum()
 
 		let blockHeight = await web3.eth.getBlockNumber()
-		let nextBlockToProcess = await getLastProcessedBlock(storage) + 1
-		// console.log(`startingBlock: ${startingBlock}, lastProcessedBlock: ${lastProcessedBlock}`)
+		let nextBlockToProcess = (await storage.getLastProcessedBlockNumber()) + 1
+		// console.log(`startingBlock: ${startingBlock}, lastProcessedBlock: ${lastProcessedBlock}, nextBlockToProcess: ${nextBlockToProcess}`)
 		if (nextBlockToProcess < startingBlock)
 			nextBlockToProcess = startingBlock
 

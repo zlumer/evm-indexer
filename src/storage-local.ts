@@ -52,7 +52,7 @@ export const inMemoryStorage = <
 	initialData?: LocalDb<Records, Events>,
 	onCommit?: (db: LocalDb<Records, Events>) => Promise<void>,
 	onCloseConnection?: (db: LocalDb<Records, Events>) => Promise<void>
-): AtomicDatabase<Records, Events, { [key in keyof Records]: Partial<Records[key]> }> =>
+): AtomicDatabase<Records, Events, { [key in keyof Records]: Partial<Records[key]> }, Records> =>
 {
 	let db: LocalDb<Records, Events> = initialData || {
 		saved: {} as LocalDb<Records, Events>["saved"],
@@ -60,6 +60,9 @@ export const inMemoryStorage = <
 		meta: [],
 	}
 	return {
+		async prepare()
+		{
+		},
 		async vacuum()
 		{
 			if (db.meta.length < 2)
@@ -94,6 +97,13 @@ export const inMemoryStorage = <
 			if (onCloseConnection)
 				await onCloseConnection(db)
 		},
+		async getLastProcessedBlockNumber()
+		{
+			if (!db.meta.length)
+				return 0
+			
+			return db.meta[db.meta.length - 1].blockNumber
+		},
 		async startMetaTransaction(): Promise<MetaTransaction>
 		{
 			let finished = false
@@ -109,8 +119,6 @@ export const inMemoryStorage = <
 					// console.log(`meta transaction commited`)
 					if (onCommit)
 						await onCommit(db)
-
-					return true
 				},
 				async rollback()
 				{
@@ -120,8 +128,6 @@ export const inMemoryStorage = <
 					finished = true
 
 					// console.log(`meta transaction rolled back`)
-
-					return true
 				},
 				async getAvailableParsedBlocks()
 				{
@@ -139,7 +145,6 @@ export const inMemoryStorage = <
 							db.saved[String(model)][id] = db.saved[model][id].filter((e) => e.blockNumber <= blockNumber)
 
 					db.meta = db.meta.filter((e) => e.blockNumber <= blockNumber)
-					return true
 				},
 			}
 		},
@@ -226,6 +231,10 @@ export const inMemoryStorage = <
 
 							return val
 						},
+						async create(id, data)
+						{
+							return data
+						},
 						async save(id, data)
 						{
 							if (finished)
@@ -285,8 +294,6 @@ export const inMemoryStorage = <
 
 					if (onCommit)
 						await onCommit(db)
-
-					return true
 				},
 				async rollback()
 				{
@@ -296,8 +303,6 @@ export const inMemoryStorage = <
 					finished = true
 
 					console.log(`db transaction rolled back`)
-
-					return true
 				},
 			}
 		},
