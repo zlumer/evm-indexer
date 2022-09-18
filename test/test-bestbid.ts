@@ -1,9 +1,10 @@
 import { AbiItem } from "web3-utils"
 import { logProgress, startLoop } from "../src"
 import bestBidAbi from "./MarsbaseBestbid.json"
-import { Handlers, inMemoryStorage } from "../src/storage"
+import { Handlers } from "../src/storage"
 import { MarsbaseBestbid } from "./generated/MarsbaseBestbid"
 import fs from "fs/promises"
+import { inMemoryStorage } from "../src/storage-local"
 
 type StorageRecords = {
 	"Offers": {
@@ -45,7 +46,7 @@ const newAddress = (address: string): StorageRecords["Addresses"] => ({
 	bidsCreated: [],
 })
 
-const BestBidHandlers: Handlers<MarsbaseBestbid, StorageRecords> = {
+const BestBidHandlers: Handlers<MarsbaseBestbid, StorageRecords, {[key in keyof StorageRecords]: Partial<StorageRecords[key]>}, StorageRecords> = {
 	// OfferCreated(uint256,address,address,(address,uint256,address[],uint256,uint256))
 	"0x19d1f9dc6c04d1d8eb9182a087f0ff2a22f6e744ae25151016543e0e44e5732a": async (e, storage, ctx) =>
 	{
@@ -167,7 +168,7 @@ const CONFIGS = {
 		createdBlockNumber: 20458137,
 	}
 }
-const config = CONFIGS.mainnet
+const config = CONFIGS.rinkeby
 
 async function loadDb()
 {
