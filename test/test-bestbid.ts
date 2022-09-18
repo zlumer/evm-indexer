@@ -70,7 +70,7 @@ const BestBidHandlers: Handlers<MarsbaseBestbid, StorageRecords, {[key in keyof 
 	// OfferClosed(uint256,address,uint8,(bool,uint256,address,(address,uint256,address[],uint256,uint256),uint256,uint256))
 	"0x4e3b99cbdb847d983244b1224fc11819f8aa93c57eef1dd5910368bff74115d7": async (e, storage, ctx) =>
 	{
-		let offer = await storage.collection("Offers").loadThrow(e.args.id)
+		let offer = await storage.collection("Offers").loadThrow(e.args.id, "write")
 
 		offer.status = "closed"
 		await storage.collection("Offers").save(e.args.id, offer)
@@ -78,12 +78,12 @@ const BestBidHandlers: Handlers<MarsbaseBestbid, StorageRecords, {[key in keyof 
 	// 	"BidAccepted(indexed uint256,indexed address,uint256,uint256,uint256,uint256,(bool,uint256,address,(address,uint256,address[],uint256,uint256),uint256,uint256),(uint256,uint256,address,address,uint256))",
 	"0x07a0c38b538343b8de726f8cd188d2ef18693286f1ebceefda2d8a2b49fe1642": async (e, storage, ctx) =>
 	{
-		let offer = await storage.collection("Offers").loadThrow(e.args.id)
+		let offer = await storage.collection("Offers").loadThrow(e.args.id, "write")
 
 		let bid = await storage.collection("Bids").findOneThrow({
 			offerId: offer.offerId,
 			bidIdx: e.args.bid.bidIdx,
-		})
+		}, "write")
 
 		offer.status = "closed"
 		offer.acceptedBidId = bid.bidId
@@ -115,7 +115,7 @@ const BestBidHandlers: Handlers<MarsbaseBestbid, StorageRecords, {[key in keyof 
 	"0x394db9698a101ce2339695d33ddff66e399a792ac64e529d270297bf637d459c": async (e, storage, ctx) =>
 	{
 		let offer = await storage.collection("Offers").loadThrow(e.args.offerId)
-		let bid = await storage.collection("Bids").loadThrow(e.args.bidId)
+		let bid = await storage.collection("Bids").loadThrow(e.args.bidId, "write")
 
 		bid.status = "cancelled"
 		await storage.collection("Bids").save(bid.bidId, bid)
@@ -134,7 +134,7 @@ const BestBidHandlers: Handlers<MarsbaseBestbid, StorageRecords, {[key in keyof 
 			tokenBob: e.args.bid.tokenBob,
 		})
 
-		let offer = await storage.collection("Offers").loadThrow(e.args.offerId)
+		let offer = await storage.collection("Offers").loadThrow(e.args.offerId, "write")
 		offer.totalBids = offer.totalBids + 1
 		await storage.collection("Offers").save(e.args.offerId, offer)
 

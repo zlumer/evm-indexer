@@ -54,12 +54,18 @@ export type Handlers<
 		[K in keyof Events]?: EventHandler<Events, K, StorageMap, Queries, StorageMapCreateData>
 	}
 
-export type Collection<T, Query, CreateData> = {
-	load: (id: string) => Promise<T | undefined | null>
-	loadThrow: (id: string) => Promise<T>
-	findOne: (query: Query) => Promise<T | undefined | null>
-	findOneThrow: (query: Query) => Promise<T>
-	findMany: (query: Query) => Promise<T[]>
+// type WithMode<T, Mode extends "read" | "write"> = Mode extends "write" ? T : Readonly<T>
+// type MethodWithMode<Method extends (...args: any[]) => Promise<any>> =
+// 	| ((...args: [...Parameters<Method>, "read" | undefined]) => Promise<Readonly<Awaited<ReturnType<Method>>>>)
+// 	| ((...args: [...Parameters<Method>, "write"]) => ReturnType<Method>)
+
+export interface Collection<T, Query, CreateData>
+{
+	load: <Mode extends "read" | "write" = "read">(id: string, mode?: Mode) => Promise<(Mode extends "write" ? T : Readonly<T>) | undefined | null>
+	loadThrow: <Mode extends "read" | "write" = "read">(id: string, mode?: Mode) => Promise<(Mode extends "write" ? T : Readonly<T>)>
+	findOne: <Mode extends "read" | "write" = "read">(query: Query, mode?: Mode) => Promise<(Mode extends "write" ? T : Readonly<T>) | undefined | null>
+	findOneThrow: <Mode extends "read" | "write" = "read">(query: Query, mode?: Mode) => Promise<(Mode extends "write" ? T : Readonly<T>)>
+	findMany: <Mode extends "read" | "write" = "read">(query: Query, mode?: Mode) => Promise<(Mode extends "write" ? T : Readonly<T>)[]>
 	save: (id: string, data: CreateData) => Promise<void>
 	create: (id: string, data: CreateData) => Promise<T>
 	// delete: (id: string) => Promise<void>
