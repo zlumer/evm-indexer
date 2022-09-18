@@ -9,6 +9,9 @@
 		"start": "ts-node src"
 	},
 	"dependencies": {
+		"@mikro-orm/core": "^5.4.2",
+		"@mikro-orm/postgresql": "^5.4.2",
+		"@mikro-orm/reflection": "^5.4.2",
 		"@prisma/client": "4.3.1",
 		"@types/node": "^18.7.16",
 		"dotenv": "^16.0.2",
