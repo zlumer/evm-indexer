@@ -1,28 +1,29 @@
 {
 	"name": "evm-indexer",
-	"version": "0.1.0",
+	"version": "0.1.1",
 	"description": "EVM indexer",
-	"main": "src/index.ts",
+	"main": "lib/index.js",
 	"author": "zlumer",
 	"license": "MIT",
 	"scripts": {
-		"start": "ts-node src"
+		"start": "ts-node src",
+		"build": "tsc"
 	},
 	"dependencies": {
 		"@mikro-orm/core": "^5.4.2",
 		"@mikro-orm/postgresql": "^5.4.2",
 		"@mikro-orm/reflection": "^5.4.2",
-		"@prisma/client": "4.3.1",
-		"@types/express": "^4.17.14",
-		"@types/node": "^18.7.16",
-		"dotenv": "^16.0.2",
 		"express": "^4.18.1",
 		"froebel": "^0.21.3",
 		"postgraphile": "^4.12.11",
 		"prettier-eslint": "^15.0.1",
-		"prisma": "^4.3.1",
-		"ts-node": "^10.9.1",
-		"typescript": "^4.8.3",
 		"web3": "^1.7.5"
+	},
+	"devDependencies": {
+		"@types/express": "^4.17.14",
+		"@types/node": "^18.7.16",
+		"dotenv": "^16.0.2",
+		"ts-node": "^10.9.1",
+		"typescript": "^4.8.3"
 	}
 }

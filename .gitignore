@@ -1,3 +1,5 @@
 /node_modules
 .env
 /test/db/*.json
+/yarn-error.log
+/lib
