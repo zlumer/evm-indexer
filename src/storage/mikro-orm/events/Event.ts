@@ -1,8 +1,6 @@
 import { Entity, PrimaryKey, PrimaryKeyType, Property } from "@mikro-orm/core"
 
-@Entity({
-	discriminatorColumn: "entity_name",
-})
+@Entity()
 export class Event
 {
 	@PrimaryKey()
