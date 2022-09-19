@@ -10,6 +10,18 @@ import { Event as EventEntity } from './storage/mikro-orm/events/Event'
 	https://www.prisma.io/dataguide/database-tools/evaluating-type-safety-in-the-top-8-typescript-orms
 */
 
+export async function migrateSchemaDESTRUCTIVE(orm: MikroORM<PostgreSqlDriver>)
+{
+	const generator = orm.getSchemaGenerator()
+	console.log(`got generator, dropping schema... (1/3)`)
+	await generator.dropSchema()
+	console.log(`dropped schema, creating new... (2/3)`)
+	await generator.createSchema()
+	console.log(`created schema, updating... (3/3)`)
+	await generator.updateSchema()
+	console.log(`migration finished`)
+}
+
 export async function validateSchema(orm: MikroORM<PostgreSqlDriver>)
 {
 	const generator = orm.getSchemaGenerator()
