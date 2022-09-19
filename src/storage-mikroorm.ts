@@ -1,8 +1,8 @@
 import { EntityManager, PostgreSqlDriver } from '@mikro-orm/postgresql'
 import { EntityClass, FilterQuery, MikroORM, EntityRepository, RequiredEntityData, QueryOrderNumeric, wrap } from "@mikro-orm/core"
 import { EventParam, AtomicDatabase, Collection, EventCollection, Event } from './storage'
-import { __evm_blocks } from './storage/mikro-orm/meta/__evm_blocks'
-import { Event as EventEntity } from './storage/mikro-orm/events/Event'
+import { __evm_blocks } from './mikro-orm/__evm_blocks'
+import { Event as EventEntity } from './mikro-orm/Event'
 
 /*
 	Best-typed ORM according to
