@@ -35,5 +35,5 @@ export class Event
 	data!: string
 
 	@Property({ type: "json" })
-	args!: unknown
+	args!: any
 }
