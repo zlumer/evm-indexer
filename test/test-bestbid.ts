@@ -1,7 +1,6 @@
 import { AbiItem } from "web3-utils"
-import { logProgress, startLoop } from "../src"
+import { logProgress, startLoop, Handlers } from "../src"
 import bestBidAbi from "./MarsbaseBestbid.json"
-import { Handlers } from "../src/storage"
 import { MarsbaseBestbid } from "./generated/MarsbaseBestbid"
 import fs from "fs/promises"
 import { inMemoryStorage } from "../src/storage-local"
