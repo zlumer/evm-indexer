@@ -1,14 +1,13 @@
 import express from "express"
 import postgraphile from "postgraphile"
-import { ENV } from "./env"
 
-export async function startGraphqlServer(port: string | number)
+export async function startGraphqlServer(dbUrl: string, port: string | number)
 {
 	let app = express()
 
 	app.use(express.json())
 
-	app.use(postgraphile(ENV.DATABASE_URL, "public", {
+	app.use(postgraphile(dbUrl, "public", {
 		// watchPg: true, // not really needed -- we will restart the server on schema changes
 		simpleCollections: "both",
 		dynamicJson: true,
