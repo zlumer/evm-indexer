@@ -69,6 +69,8 @@ async function checkForLastValidBlock(web3: Web3, blocks: { blockHash: string, b
 		if (block?.hash == last.blockHash)
 			return last.blockNumber
 
+		console.log(`block hashes mismatch for block #${last.blockNumber}: ${block?.hash} != ${last.blockHash}`)
+
 		last = blocks.pop()
 	}
 	return 0

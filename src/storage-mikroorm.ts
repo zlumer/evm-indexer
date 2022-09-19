@@ -279,7 +279,7 @@ export const mikroOrmStorage = <
 					let rep = em.getRepository(__evm_blocks)
 					let blocks = await rep.findAll({ orderBy: { blockNumber: QueryOrderNumeric.DESC }, limit: timeTravelDepth })
 					// console.log(`blocks`, blocks)
-					return blocks
+					return blocks.reverse()
 				},
 
 			}
