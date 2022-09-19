@@ -23,12 +23,9 @@ jobs:
       
       - name: Install dependencies
         run: yarn
-
-      - name: Check TypeScript errors
-        run: yarn tsc --noEmit
         
-      # - name: Build project
-      #   run: yarn build
+      - name: Build project
+        run: yarn build
 
       - name: Get package version number
         id: package-version
