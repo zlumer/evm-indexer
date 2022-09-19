@@ -1,0 +1,33 @@
+name: Publish NPM package on tag
+on: 
+  push:
+    tags:
+      - 'v*'
+
+env:
+  NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v1
+        with:
+          node-version: '16.x'
+
+      - name: Install dependencies
+        run: yarn
+
+      - name: Build project
+        run: yarn build
+        
+      - name: NPM Publish
+        uses: JS-DevTools/npm-publish@v1
+        with:
+          token: ${{ env.NPM_TOKEN }}
+          access: public
