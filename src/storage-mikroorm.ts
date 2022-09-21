@@ -174,7 +174,7 @@ export const mikroOrmStorage = <
 		entity: EntityClass<Records[key]>,
 		history: EntityClass<RequiredEntityData<Records[key]>>,
 	} },
-	events: { [key in keyof Events]: EntityClass<Event<Events[key]>> },
+	events: { [key in keyof Events]?: EntityClass<Event<Events[key]>> },
 ): AtomicDatabase<Records, Events, { [key in keyof Records]: FilterQuery<Records[key]> }, { [key in keyof Records]: RequiredEntityData<Records[key]> }> =>
 {
 	const getLastProcessedBlockNumber = async () =>
