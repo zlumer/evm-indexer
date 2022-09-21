@@ -14,11 +14,17 @@ export async function migrateSchemaDESTRUCTIVE(orm: MikroORM<PostgreSqlDriver>)
 {
 	const generator = orm.getSchemaGenerator()
 	console.log(`got generator, dropping schema... (1/3)`)
-	await generator.dropSchema()
+	await generator.dropSchema({
+		wrap: false,
+	})
 	console.log(`dropped schema, creating new... (2/3)`)
-	await generator.createSchema()
+	await generator.createSchema({
+		wrap: false,
+	})
 	console.log(`created schema, updating... (3/3)`)
-	await generator.updateSchema()
+	await generator.updateSchema({
+		wrap: false,
+	})
 	console.log(`migration finished`)
 }
 
@@ -33,6 +39,7 @@ export async function validateSchema(orm: MikroORM<PostgreSqlDriver>)
 		await generator.updateSchema({
 			dropTables: false,
 			safe: true,
+			wrap: false,
 		})
 		if ((await generator.getUpdateSchemaSQL()).length > 0)
 		{
