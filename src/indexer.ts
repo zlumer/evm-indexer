@@ -5,6 +5,7 @@ import { loadNextChunkLogsForContract } from "./loadLogs"
 import { splitWeb3Result } from "./parser"
 import { sleep } from "./sleep"
 import type { AtomicDatabase, Event, EventParam, Handlers, NamedArgs } from "./storage"
+import { WebhookQueue, Webhooks } from "./webhooks"
 
 export type Config<
 	Events extends Record<string, EventParam<string, unknown>[]>,
@@ -18,6 +19,7 @@ export type Config<
 		createdBlockNumber: number
 		abi: AbiItem[]
 		handlers: Handlers<Events, StorageMap, Queries, StorageMapCreateData>
+		webhooks: Webhooks<Events>
 	}>
 }
 
@@ -128,8 +130,13 @@ export async function startLoop<
 	Events extends Record<string, EventParam<string, unknown>[]>,
 	Db extends Record<string, unknown>,
 	Queries extends Record<keyof Db, {}>,
-	DbRawCreateData extends Record<keyof Db, {}>
->(storage: AtomicDatabase<Db, Events, Queries, DbRawCreateData>, config: Config<Events, Db, Queries, DbRawCreateData>, onProgress?: ProgressHandler)
+	DbRawCreateData extends Record<keyof Db, {}>,
+>(
+	storage: AtomicDatabase<Db, Events, Queries, DbRawCreateData>,
+	config: Config<Events, Db, Queries, DbRawCreateData>,
+	onError: (err: unknown) => void,
+	onProgress?: ProgressHandler
+)
 {
 	let web3 = new Web3(config.rpc)
 	let addresses = Object.keys(config.contracts)
@@ -137,6 +144,7 @@ export async function startLoop<
 	let topics = removeDuplicates(filterEvents(abis).map(web3.eth.abi.encodeEventSignature))
 	let startingBlock = Math.min(...Object.values(config.contracts).map(x => x.createdBlockNumber))
 	let events = mapObj(config.contracts, (k, v) => eventsByTopic(v.abi, web3.eth.abi.encodeEventSignature))
+	let whManager = new WebhookQueue(config, onError)
 
 	let timeStarted = Date.now()
 
@@ -225,6 +233,8 @@ export async function startLoop<
 					data: log.data,
 				}
 				await dbTx.eventCollection(topic, log.address).add(event)
+				
+				whManager.enqueue(log.address, topic, event, { block, tx })
 
 				// console.log(event)
 
@@ -238,6 +248,7 @@ export async function startLoop<
 				}
 			}
 			await dbTx.commit()
+			await whManager.fireAllWebhooks()
 		}
 		await skipBlock(storage, nextChunk.lastBlock.number, nextChunk.lastBlock.hash)
 	}
