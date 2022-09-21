@@ -15,8 +15,6 @@ export async function startGraphqlServer(dbUrl: string | ClientConfig, port: str
 		enableCors: true,
 		disableDefaultMutations: true,
 		disableQueryLog: true,
-		graphiql: true,
-		enhanceGraphiql: true,
 	}))
 
 	console.log(`starting GraphQL server on port ${port}...`)
