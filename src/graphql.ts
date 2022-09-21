@@ -1,7 +1,8 @@
 import express from "express"
 import postgraphile from "postgraphile"
+import type { ClientConfig } from "pg"
 
-export async function startGraphqlServer(dbUrl: string, port: string | number)
+export async function startGraphqlServer(dbUrl: string | ClientConfig, port: string | number)
 {
 	let app = express()
 
