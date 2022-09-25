@@ -10,25 +10,28 @@ import { Event as EventEntity } from './mikro-orm/Event'
 	https://www.prisma.io/dataguide/database-tools/evaluating-type-safety-in-the-top-8-typescript-orms
 */
 
-export async function migrateSchemaDESTRUCTIVE(orm: MikroORM<PostgreSqlDriver>)
+export async function migrateSchemaDESTRUCTIVE(orm: MikroORM<PostgreSqlDriver>, schema: string)
 {
 	const generator = orm.getSchemaGenerator()
 	console.log(`got generator, dropping schema... (1/3)`)
 	await generator.dropSchema({
 		wrap: false,
+		schema,
 	})
 	console.log(`dropped schema, creating new... (2/3)`)
 	await generator.createSchema({
 		wrap: false,
+		schema,
 	})
 	console.log(`created schema, updating... (3/3)`)
 	await generator.updateSchema({
 		wrap: false,
+		schema,
 	})
 	console.log(`migration finished`)
 }
 
-export async function validateSchema(orm: MikroORM<PostgreSqlDriver>)
+export async function validateSchema(orm: MikroORM<PostgreSqlDriver>, schema: string)
 {
 	const generator = orm.getSchemaGenerator()
 	try
@@ -40,8 +43,9 @@ export async function validateSchema(orm: MikroORM<PostgreSqlDriver>)
 			dropTables: false,
 			safe: true,
 			wrap: false,
+			schema,
 		})
-		if ((await generator.getUpdateSchemaSQL()).length > 0)
+		if ((await generator.getUpdateSchemaSQL({ schema })).length > 0)
 		{
 			console.error("Schema is not up to date, migrate manually")
 			process.exit(1)
