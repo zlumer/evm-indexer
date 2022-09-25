@@ -1,6 +1,6 @@
 {
 	"name": "evm-indexer",
-	"version": "0.2.2",
+	"version": "0.2.3",
 	"description": "EVM indexer",
 	"main": "lib/index.js",
 	"author": "zlumer",
