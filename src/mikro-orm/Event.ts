@@ -1,6 +1,6 @@
 import { Entity, PrimaryKey, PrimaryKeyType, Property } from "@mikro-orm/core"
 
-@Entity()
+@Entity({ schema: "*" })
 export class Event
 {
 	@PrimaryKey()

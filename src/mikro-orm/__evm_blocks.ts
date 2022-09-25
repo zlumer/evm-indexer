@@ -1,6 +1,6 @@
 import { Entity, PrimaryKey, Property } from "@mikro-orm/core"
 
-@Entity()
+@Entity({ schema: "*" })
 export class __evm_blocks
 {
 	@PrimaryKey()
