@@ -2,9 +2,9 @@ import express from "express"
 import postgraphile from "postgraphile"
 import type { ClientConfig } from "pg"
 
-export function getGraphqlRoute(dbUrl: string | ClientConfig)
+export function getGraphqlRoute(dbUrl: string | ClientConfig, schemaName: string = "public")
 {
-	return postgraphile(dbUrl, "public", {
+	return postgraphile(dbUrl, schemaName, {
 		// watchPg: true, // not really needed -- we will restart the server on schema changes
 		simpleCollections: "both",
 		dynamicJson: true,
