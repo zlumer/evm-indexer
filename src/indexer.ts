@@ -241,10 +241,19 @@ export async function startLoop<
 				let handler = contract.handlers[topic]
 				if (handler)
 				{
-					await handler(event, dbTx, {
-						block: block,
-						tx: tx,
-					})
+					try
+					{
+						await handler(event, dbTx, {
+							block: block,
+							tx: tx,
+						})
+					}
+					catch (e)
+					{
+						console.error(`Error while processing event ${event.fullName} in block ${event.blockNumber} tx ${event.txHash} log ${event.logIndex}:`)
+						console.error(e)
+						throw e
+					}
 				}
 			}
 			await dbTx.commit()
