@@ -47,8 +47,7 @@ export async function validateSchema(orm: MikroORM<PostgreSqlDriver>, schema: st
 		})
 		if ((await generator.getUpdateSchemaSQL({ schema })).length > 0)
 		{
-			console.error("Schema is not up to date, migrate manually")
-			process.exit(1)
+			throw new Error("Schema is not up to date, migrate manually")
 		}
 	}
 	catch (e)
