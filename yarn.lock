@@ -5677,14 +5677,7 @@ ts-morph@16.0.0:
     "@ts-morph/common" "~0.17.0"
     code-block-writer "^11.0.3"
 
-ts-node-test@^0.2.0:
-  version "0.2.0"
-  resolved "https://registry.yarnpkg.com/ts-node-test/-/ts-node-test-0.2.0.tgz#5af55c99094be595d4ef1ce28ded4030dfcf3eb2"
-  integrity sha512-d3tMATFBY+ZmuEzXRRJ87MAHdh5vkefe+irpdy1DodVT2AHEf0z3tCDyV0O/tzH0oyQqeJXB3Y1B2emh5snFiA==
-  dependencies:
-    ts-node "10.9.1"
-
-ts-node@10.9.1, ts-node@^10.9.1:
+ts-node@^10.9.1:
   version "10.9.1"
   resolved "https://registry.yarnpkg.com/ts-node/-/ts-node-10.9.1.tgz#e73de9102958af9e1f0b168a6ff320e25adcff4b"
   integrity sha512-NtVysVPkxxrwFGUUxGYhfux8k78pQB3JqYBXlLRZgdGUqTO5wU/UyHop5p70iEbGhB7q5KmiZiU0Y3KlJrScEw==
