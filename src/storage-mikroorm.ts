@@ -52,7 +52,7 @@ export async function validateSchema(orm: MikroORM<PostgreSqlDriver>, schema: st
 	}
 	catch (e)
 	{
-		console.error(`Erorr trying to update schema! Migrate manually`)
+		// console.error(`Erorr trying to update schema! Migrate manually`)
 		throw e
 	}
 }
@@ -85,14 +85,14 @@ const getCollection = <T extends { blockNumber: number }>(
 	withVersion: <U extends Omit<T | RequiredEntityData<T>, "blockNumber">>(entity: U, version: number) => RequiredEntityData<T>,
 ): Collection<T, FilterQuery<T>, Omit<RequiredEntityData<T>, "blockNumber">> =>
 {
-	async function insertHistory(query: FilterQuery<T>, entity: T | null | undefined)
+	async function insertHistory(query: FilterQuery<T>, entity: RequiredEntityData<T> | null | undefined)
 	{
 		if (!entity)
 			return
 
-		// console.log(`Inserting history for at block ${entity.blockNumber} on ${blockNumber}`)
+		// console.log(`Inserting history for at block ${getVersion(entity)} on ${blockNumber}`)
 
-		return insertIfMissing(history, { ...query, blockNumber } as any, withVersion(entity, blockNumber))
+		return upsert(history, { ...query, blockNumber } as any, withVersion(entity, blockNumber))
 	}
 	return {
 		load: async (id, mode) =>
@@ -141,10 +141,17 @@ const getCollection = <T extends { blockNumber: number }>(
 
 			return all
 		},
-		create: async (id, data) => repository.create(withVersion(data, blockNumber)),
+		create: async (id, data) =>
+		{
+			let c = repository.create(withVersion(data, blockNumber))
+			repository.persist(c)
+			await insertHistory(findById(id), withVersion(data, blockNumber))
+			return c
+		},
 		async save(id, data)
 		{
 			await upsert<T>(repository, findById(id), withVersion(data, blockNumber))
+			await insertHistory(findById(id), withVersion(data, blockNumber))
 			// console.log(`Saving ${id} with version ${blockNumber} over ${prevVersion ? getVersion(prevVersion) : 'nothing'}`)
 			// if (prevVersion)
 			// {
@@ -163,6 +170,8 @@ const getCollection = <T extends { blockNumber: number }>(
 	}
 }
 
+type Versionless<T> = Omit<T, "blockNumber">
+
 export const mikroOrmStorage = <
 	Records extends Record<string, { blockNumber: number }>,
 	Events extends Record<string, EventParam<string, {}>[]>,
@@ -171,14 +180,14 @@ export const mikroOrmStorage = <
 	orm: MikroORM<PostgreSqlDriver>,
 	schema: { [key in keyof Records]: {
 		byId: (id: string) => FilterQuery<Records[key]>,
-		getId: (obj: Records[key] | RequiredEntityData<Records[key]>) => string,
+		getId: (obj: Versionless<Records[key] | RequiredEntityData<Records[key]>>) => string,
 		version: (obj: Records[key] | RequiredEntityData<Records[key]>) => number,
-		withVersion: <U extends Omit<Records[key] | RequiredEntityData<Records[key]>, "blockNumber">>(obj: U, version: number) => RequiredEntityData<Records[key]>
+		withVersion: <U extends Versionless<Records[key] | RequiredEntityData<Records[key]>>>(obj: U, version: number) => RequiredEntityData<Records[key]>
 		entity: EntityClass<Records[key]>,
 		history: EntityClass<RequiredEntityData<Records[key]>>,
 	} },
 	events: { [key in keyof Events]?: EntityClass<Event<Events[key]>> },
-): AtomicDatabase<Records, Events, { [key in keyof Records]: FilterQuery<Records[key]> }, { [key in keyof Records]: RequiredEntityData<Records[key]> }> =>
+): AtomicDatabase<Records, Events, { [key in keyof Records]: FilterQuery<Records[key]> }, { [key in keyof Records]: Versionless<RequiredEntityData<Records[key]>> }> =>
 {
 	const getLastProcessedBlockNumber = async () =>
 	{
@@ -201,24 +210,40 @@ export const mikroOrmStorage = <
 
 		for (let s in schema)
 		{
+			// console.log(`processing ${s}`)
 			let x = schema[s]
 			let rep = em.getRepository(x.entity)
 			let hist = em.getRepository(x.history)
 
 			let oldHistory = await hist.find({ blockNumber: { $gt: blockNumber } } as any)
+			// console.log(`removing ${oldHistory.length} history entries`)
+			// console.log(oldHistory)
 			for (let h of oldHistory)
 				hist.remove(h)
 
 			let old = await rep.find({ blockNumber: { $gt: blockNumber } } as any)
 			for (let o of old)
 			{
-				rep.remove(o)
-				let historical = await hist.find(x.byId(x.getId(o)) as any, {
+				let query = x.byId(x.getId(o))
+				let historical = await hist.find({ ...query, blockNumber: { $lte: blockNumber } } as any, {
 					orderBy: { blockNumber: QueryOrderNumeric.DESC },
 					limit: 1
 				} as any)
+				// console.log(`found ${historical.length} historical entries`)
+				// console.log(query)
+				// console.log(`blockNumber: ${blockNumber}`)
+				// console.log(await hist.findAll({}))
+				
 				if (historical.length)
-					rep.persist(rep.create(historical[0]))
+				{
+					rep.assign(o, historical[0])
+					// rep.persist(rep.create(historical[0]))
+					hist.remove(historical[0])
+				}
+				else
+				{
+					rep.remove(o)
+				}
 			}
 		}
 	}
