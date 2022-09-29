@@ -1,7 +1,7 @@
 import { Cascade, Collection, Entity, OneToMany, PrimaryKey, Property } from "@mikro-orm/core"
 import { Offer } from "./Offer"
 
-@Entity()
+@Entity({ schema: "*" })
 export class Address
 {
 	@PrimaryKey()
@@ -18,7 +18,7 @@ export class Address
 	tradedWith!: string[]
 }
 
-@Entity()
+@Entity({ schema: "*" })
 export class __evm__history__Address
 {
 	@PrimaryKey()

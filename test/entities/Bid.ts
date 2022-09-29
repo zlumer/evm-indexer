@@ -3,7 +3,7 @@ import { Address } from "./Address"
 import { Offer } from "./Offer"
 
 // model Bid {
-@Entity()
+@Entity({ schema: "*" })
 export class Bid
 {
     // bidId       String
@@ -48,7 +48,7 @@ export class Bid
 	// tokenBob?: Address
 }
 
-@Entity()
+@Entity({ schema: "*" })
 export class __evm__history__Bid
 {
 	

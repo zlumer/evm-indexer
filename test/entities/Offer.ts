@@ -3,7 +3,7 @@ import { Address } from "./Address"
 import { Bid } from "./Bid"
 
 // model Offer {
-@Entity()
+@Entity({ schema: "*" })
 export class Offer
 {
 	//     offerId     String
@@ -48,7 +48,7 @@ export class Offer
 	bids? = new Collection<Bid>(this)
 }
 
-@Entity()
+@Entity({ schema: "*" })
 export class __evm__history__Offer
 {
 	//     offerId     String
