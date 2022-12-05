@@ -1,0 +1,41 @@
+Address:
+  address: String @id
+
+  offers: Offer[] @many(alice)
+
+  tradedWith: String[]
+
+Offer:
+  offerId: String @id
+
+  status:       String
+  aliceAddress: String
+  alice:        Address? @link(aliceAddress)
+  tokenAlice:   String
+  tokensBob:    String[]
+
+  totalBids: Int
+
+  acceptedBidId: String?
+  acceptedBid: Bid? @link(acceptedBidId)
+
+  createdAt: Int
+  closedAt: Int?
+  
+  bids: Bid[] @many(offer)
+
+Bid:
+  bidId: String @id
+
+  offerId: String
+  offer: Offer? @link(offerId)
+
+  bidIdx: String
+
+  bobAddress: String
+  bob: Address? @link(bobAddress)
+
+  tokenBobAddress: String
+  amountBob: String
+
+  status: String
