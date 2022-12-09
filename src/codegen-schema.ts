@@ -203,7 +203,7 @@ const templates = {
 
 	/** returns an abbreviated variable name for the given type (e.g. `Offer` -> `o`, `Bid` -> `b`, `ERC20` => `erc20`, `camelCaseVar` -> `ccv`) */
 	argNameFromType: (type: string) =>
-		type[0].toLowerCase() + type.slice(1).replace(/[^a-z]/g, "").replace(/([A-Z])/g, x => x.toLowerCase()),
+		type[0].toLowerCase() + type.slice(1).replace(/[a-z]/g, "").replace(/([A-Z])/g, x => x.toLowerCase()),
 
 	changeArrayStyle: (type: string) =>
 	{
