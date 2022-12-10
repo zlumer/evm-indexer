@@ -1,41 +1,51 @@
 Address:
-  address: String @id
+  address:    String @id
 
-  offers: Offer[] @many(alice)
+  exOffers:   ExOffer[] @many(alice)
+  exBids:     ExBid[] @many(bob)
 
   tradedWith: String[]
 
-Offer:
-  offerId: String @id
+ExOffer:
+  offerId:         String @id
 
-  status:       String
-  aliceAddress: String
-  alice:        Address? @link(aliceAddress)
-  tokenAlice:   String
-  tokensBob:    String[]
+  status:          String
 
-  totalBids: Int
+  aliceAddress:    String
+  alice:           Address? @link(aliceAddress)
 
-  acceptedBidId: String?
-  acceptedBid: Bid? @link(acceptedBidId)
+  tokenAlice:      String
+  tokensBob:       String[]
 
-  createdAt: Int
-  closedAt: Int?
+  amountAlice:     String
+  amountAliceSold: String
+  minimumSize:     String
+  tokensSent:      Boolean
+
+  feeAlice:        String
+  feeBob:          String
   
-  bids: Bid[] @many(offer)
+  createdAt:       Int
+  deadline:        Int
 
-Bid:
-  bidId: String @id
+  totalBids:       Int
+  bids:            ExBid[] @many(offer)
 
-  offerId: String
-  offer: Offer? @link(offerId)
+ExBid:
+  bidId:               String @id
+  
+  bobAddress:          String
+  bob:                 Address? @link(bobAddress)
 
-  bidIdx: String
+  offerId:             String
+  offer:               ExOffer? @link(offerId)
 
-  bobAddress: String
-  bob: Address? @link(bobAddress)
+  timestamp:           Int
 
-  tokenBobAddress: String
-  amountBob: String
+  tokenAliceAddress:   String
+  amountAliceReceived: String
+  feeAlice:            String
 
-  status: String
+  tokenBobAddress:     String
+  amountBobReceived:   String
+  feeBob:              String
