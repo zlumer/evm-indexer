@@ -9,6 +9,10 @@ let prettierConfig: prettier.Config = {
 	tabWidth: 4,
 }
 
+// TODO:
+// - check for invalid type names
+// - check for duplicate field names
+
 export function generate(schemaStr: string, pathToEntities = "./entities")
 {
 	let schema = yaml.parse(schemaStr)
@@ -166,6 +170,9 @@ const templates = {
 		else
 			rest.unshift(bn)
 
+		if (history)
+			rest = rest.filter(x => (x._kind != "many") && (x._kind != "link"))
+
 		let sortedFields = [...pkeys, ...rest]
 
 		let code = sortedFields.map(templates.fieldToCode).join('\n\n')
@@ -198,7 +205,7 @@ const templates = {
 
 		many: (name: string, type: string, on: string) =>
 			`@OneToMany(() => ${type}, ${templates.argNameFromType(type)} => ${templates.argNameFromType(type)}.${on}, { cascade: [Cascade.PERSIST] })`
-			+ `\n${name}? = new Collection<${type}>(this)`,
+			+ `\n${name} = new Collection<${type}>(this)`,
 	},
 
 	/** returns an abbreviated variable name for the given type (e.g. `Offer` -> `o`, `Bid` -> `b`, `ERC20` => `erc20`, `camelCaseVar` -> `ccv`) */
@@ -214,7 +221,7 @@ const templates = {
 		let innerType = templates.substitutePrimitive(type.slice(bracketsAmount, -bracketsAmount))
 		return `${innerType}${"[]".repeat(bracketsAmount)}`
 	},
-	substitutePrimitive: (type: string) => (templates.types as any)[type] || type,
+	substitutePrimitive: (type: string) => (templates.types as any)[type.replace(/\[\]$/g, '')] || type,
 	removeArrayPostfix: (type: string) =>
 		`${type}`.replace(/(\[\])+$/, ""),
 

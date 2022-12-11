@@ -59,7 +59,7 @@ export class ExOffer {
 	tokenAlice!: string
 
 	@Property()
-	tokensBob!: String[]
+	tokensBob!: string
 
 	@Property()
 	tokensSent!: boolean
@@ -107,7 +107,7 @@ export class __evm__history__ExOffer {
 	tokenAlice!: string
 
 	@Property()
-	tokensBob!: String[]
+	tokensBob!: string
 
 	@Property()
 	tokensSent!: boolean

@@ -26,7 +26,7 @@ export class Address {
 	exOffers = new Collection<ExOffer>(this)
 
 	@Property()
-	tradedWith!: String[]
+	tradedWith!: string
 }
 
 @Entity({ schema: "*" })
@@ -38,5 +38,5 @@ export class __evm__history__Address {
 	blockNumber!: number
 
 	@Property()
-	tradedWith!: String[]
+	tradedWith!: string
 }
