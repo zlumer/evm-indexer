@@ -212,18 +212,23 @@ const templates = {
 	argNameFromType: (type: string) =>
 		type[0].toLowerCase() + type.slice(1).replace(/[a-z]/g, "").replace(/([A-Z])/g, x => x.toLowerCase()),
 
-	changeArrayStyle: (type: string) =>
+	substituteArrayWithPrimitive: (type: string) =>
 	{
-		let bracketsAmount = type.match(/^\[*/)?.[0]?.length ?? 0
-		if (!bracketsAmount)
-			return type
-
-		let innerType = templates.substitutePrimitive(type.slice(bracketsAmount, -bracketsAmount))
-		return `${innerType}${"[]".repeat(bracketsAmount)}`
+		// remove brackets from the type
+		let elementType = templates.removeArrayPostfix(type)
+		let primitiveType = templates.substitutePrimitive(elementType)
+		return templates.substituteArray(type, primitiveType)
 	},
-	substitutePrimitive: (type: string) => (templates.types as any)[type.replace(/\[\]$/g, '')] || type,
-	removeArrayPostfix: (type: string) =>
-		`${type}`.replace(/(\[\])+$/, ""),
+	substituteArray: (type: string, withType: string) =>
+	{
+		let bracketsAmount = countBracketPairs(type)
+		if (bracketsAmount == 0)
+			return withType
+
+		return `${withType}${"[]".repeat(bracketsAmount)}`
+	},
+	substitutePrimitive: (type: string) => (templates.types as any)[type] || type,
+	removeArrayPostfix: (type: string) => `${type}`.replace(/(\[\])+$/, ""),
 
 	types: {
 		Int: "number",
@@ -234,13 +239,13 @@ const templates = {
 
 	fieldToCode: (field: Field) =>
 	{
-		let type = templates.changeArrayStyle(field.type)
+		let type = templates.substituteArrayWithPrimitive(field.type)
 		switch (field._kind)
 		{
 			case "pkey":
-				return templates.fields.pkey(field.name, templates.substitutePrimitive(type))
+				return templates.fields.pkey(field.name, type)
 			case "basic":
-				return templates.fields.prop(field.name, templates.substitutePrimitive(type), field.nullable ?? false)
+				return templates.fields.prop(field.name, type, field.nullable ?? false)
 			case "link":
 				return templates.fields.link(field.name, type, field.field)
 			case "many":
@@ -253,6 +258,22 @@ const templates = {
 		type: (type: string) => `import { ${type} } from "./${type}"`,
 	}
 }
+function countBracketPairs(typeName: string)
+{
+	// Create a regular expression that matches one or more square brackets at the end of the type name
+	const bracketPairsRegex = /\[\]*$/
+
+	// Use the regular expression to extract the bracket pairs from the type name
+	const bracketPairs = typeName.match(bracketPairsRegex)
+
+	// If there are no bracket pairs, return 0
+	if (!bracketPairs)
+		return 0
+
+	// Otherwise, return the number of bracket pairs (which is the length of the bracket pairs string divided by 2)
+	return bracketPairs[0].length / 2
+}
+
 
 const templatesAggregate = {
 
