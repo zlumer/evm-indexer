@@ -41,7 +41,7 @@ export class ExOffer {
 	createdAt!: number
 
 	@Property()
-	deadline!: number
+	deadline!: string
 
 	@Property()
 	feeAlice!: string
@@ -59,7 +59,7 @@ export class ExOffer {
 	tokenAlice!: string
 
 	@Property()
-	tokensBob!: string
+	tokensBob!: string[]
 
 	@Property()
 	tokensSent!: boolean
@@ -89,7 +89,7 @@ export class __evm__history__ExOffer {
 	createdAt!: number
 
 	@Property()
-	deadline!: number
+	deadline!: string
 
 	@Property()
 	feeAlice!: string
@@ -107,7 +107,7 @@ export class __evm__history__ExOffer {
 	tokenAlice!: string
 
 	@Property()
-	tokensBob!: string
+	tokensBob!: string[]
 
 	@Property()
 	tokensSent!: boolean
