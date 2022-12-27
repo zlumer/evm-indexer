@@ -4,7 +4,7 @@
 
 If you want to use this in your dApp, please contact me first and I'll try to help as much as I can.
 
-Email: `[my github username]@gmail.com` or Telegram: [`@zlumer`](https://zlumer.t.me/)
+Email: `zlumer@gmail.com` or Telegram: [`@zlumer`](https://zlumer.t.me/)
 
 ## Motivation
 
